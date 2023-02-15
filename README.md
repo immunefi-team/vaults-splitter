@@ -64,5 +64,6 @@ to submit.
 ### Audits
 
 - [Internal Audit by Immunefi Triaging Team](./audits/2023-02-03%20-%20Immunefi%20-%20Internal%20Audit%20of%20the%20Vaults%20system.pdf)
+- [External Audit by Ourovoros](./audits/2023-02-13%20-%20Ourovoros%20Audit.md)
 
 ## License
