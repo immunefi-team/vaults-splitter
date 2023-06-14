@@ -28,7 +28,8 @@ This is a beta and up to changes in the next iterations.
 
 ## Deployments
 
-Deployments available on Ethereum [Mainnet](https://etherscan.io/address/0x03fd3d61423e6d46dcc3917862fbc57653dc3eb0) and [Goerli](https://goerli.etherscan.io/address/0xD701a744543E649d2035176651F20b3d65F5E213).
+Deployments available on Ethereum [Mainnet](https://etherscan.io/address/0x03fd3d61423e6d46dcc3917862fbc57653dc3eb0) and
+[Goerli](https://goerli.etherscan.io/address/0xD701a744543E649d2035176651F20b3d65F5E213).
 
 ## Testing
 
