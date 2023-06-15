@@ -7,15 +7,14 @@ import "../src/Splitter.sol";
 contract SplitterDeployer is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        vm.startBroadcast(deployerPrivateKey);
-
+        uint256 gasCap = 50_000;
         uint256 maxFee = 15_00;
         uint256 fee = 10_00;
         address owner = vm.envAddress("SPLITTER_OWNER");
         address payable feeRecipient = payable(vm.envAddress("SPLITTER_FEE_RECIPIENT"));
 
-        new Splitter{ salt: "immunefi" }(maxFee, fee, owner, feeRecipient);
-
+        vm.startBroadcast(deployerPrivateKey);
+        new Splitter{ salt: "immunefi" }(gasCap, maxFee, fee, owner, feeRecipient);
         vm.stopBroadcast();
     }
 }

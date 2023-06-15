@@ -28,9 +28,8 @@ This is a beta and up to changes in the next iterations.
 
 ## Deployments
 
-Deterministic deployments available at `0xa35d2f47063076d2eaf4c5e3efea4f15936086d8` on Ethereum
-[Mainnet](https://etherscan.io/address/0xa35d2f47063076d2eaf4c5e3efea4f15936086d8) and
-[Goerli](https://goerli.etherscan.io/address/0xa35d2f47063076d2eaf4c5e3efea4f15936086d8).
+Deployments available on Ethereum [Mainnet](https://etherscan.io/address/0x03fd3d61423e6d46dcc3917862fbc57653dc3eb0) and
+[Goerli](https://goerli.etherscan.io/address/0xD701a744543E649d2035176651F20b3d65F5E213).
 
 ## Testing
 
@@ -65,5 +64,6 @@ to submit.
 
 - [Internal Audit by Immunefi Triaging Team](./audits/2023-02-03%20-%20Immunefi%20-%20Internal%20Audit%20of%20the%20Vaults%20system.pdf)
 - [External Audit by Ourovoros](./audits/2023-02-13%20-%20Ourovoros%20Audit.md)
+- [External Audit by Ourovoros - May 2023](./audits/2023-05-02%20-%20Ourovouros%20Audit.pdf)
 
 ## License
