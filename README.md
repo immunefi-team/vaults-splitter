@@ -17,7 +17,7 @@ lock assets for bug bounties to further incentivize hackers to review their proj
 ## High level description
 
 A project can prove their proof of assets deploying a vault via Immunefi Dashboard and depositing assets. The project is
-the ultimate owner of the vault, none else can access or operate their funds. The system is non custodial.
+the ultimate owner of the vault. No one else can access or operate their funds. The system is non custodial.
 
 Currently a vault is implemented as a [Gnosis Safe](https://github.com/safe-global/safe-contracts).
 
