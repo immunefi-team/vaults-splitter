@@ -57,7 +57,6 @@ contract SplitterTest is Test {
         splitter.changeFeeRecipient(payable(address(0)));
     }
 
-
     function testCannotStuckETH() public {
         // try to send more than expected, will refund
 
