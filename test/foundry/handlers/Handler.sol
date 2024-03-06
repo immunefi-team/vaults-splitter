@@ -37,7 +37,8 @@ contract Handler is CommonBase, StdCheats, StdUtils {
         uint256 nativeTokenAmtSent,
         uint256 nativeTokenAmtToPay,
         uint256 tokenAmt,
-        uint256 gasAmt
+        uint256 gasAmt,
+        uint256 fee
     ) public {
         nativeTokenAmtSent = bound(nativeTokenAmtSent, 0, address(this).balance);
         gasAmt = bound(gasAmt, 0, splitter.gasCap());
@@ -46,12 +47,14 @@ contract Handler is CommonBase, StdCheats, StdUtils {
         nativeTokenAmtToPay = bound(nativeTokenAmtToPay, 0, nativeTokenAmtSent);
         tokenAmt = bound(tokenAmt, 0, token.balanceOf(address(this)));
 
-        // avoid lack of funds to pay for fees
+        // avoid fee being too high
+        fee = bound(fee, 0, splitter.maxFee());
 
-        uint256 nativeFee = (splitter.fee() * nativeTokenAmtToPay) / splitter.FEE_BASIS();
+        // avoid lack of funds to pay for fees
+        uint256 nativeFee = (fee * nativeTokenAmtToPay) / splitter.FEE_BASIS();
         nativeTokenAmtToPay = bound(nativeTokenAmtToPay, 0, nativeTokenAmtSent - nativeFee);
 
-        uint256 tokenFee = (splitter.fee() * tokenAmt) / splitter.FEE_BASIS();
+        uint256 tokenFee = (fee * tokenAmt) / splitter.FEE_BASIS();
         tokenAmt = bound(tokenAmt, 0, token.balanceOf(address(this)) - tokenFee);
 
         // make the payment
@@ -63,7 +66,8 @@ contract Handler is CommonBase, StdCheats, StdUtils {
             wh,
             erc20Payments,
             nativeTokenAmtToPay,
-            gasAmt
+            gasAmt,
+            fee
         );
     }
 

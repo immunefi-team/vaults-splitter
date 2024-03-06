@@ -19,7 +19,7 @@ contract SplitterInvariantsTest is Test {
         feeRecipient = payable(vm.addr(2));
         gasCap = 500_000;
 
-        splitter = new Splitter(gasCap, 1_500, 1_000, owner, feeRecipient);
+        splitter = new Splitter(gasCap, 1_500, owner, feeRecipient);
 
         handler = new Handler(splitter);
 

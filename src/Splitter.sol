@@ -5,13 +5,12 @@ import { IERC20 } from "openzeppelin-contracts/interfaces/IERC20.sol";
 import { SafeERC20 } from "openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
 import { Ownable } from "openzeppelin-contracts/access/Ownable.sol";
 import { ReentrancyGuard } from "openzeppelin-contracts/security/ReentrancyGuard.sol";
-import { Withdrawable } from "./Withdrawable.sol";
 
 /**
  * @title Splitter
  * @author Immunefi
  */
-contract Splitter is Ownable, Withdrawable, ReentrancyGuard {
+contract Splitter is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     struct ERC20Payment {
@@ -20,7 +19,6 @@ contract Splitter is Ownable, Withdrawable, ReentrancyGuard {
     }
 
     event FeeRecipientChanged(address prevFeeRecipient, address newFeeRecipient);
-    event FeeChanged(uint256 prevFee, uint256 newFee);
     event PayWhitehat(
         address indexed from,
         bytes32 indexed referenceId,
@@ -31,43 +29,19 @@ contract Splitter is Ownable, Withdrawable, ReentrancyGuard {
         uint256 fee
     );
 
-    uint256 public fee;
     uint256 public constant FEE_BASIS = 100_00;
     uint256 public immutable maxFee;
     uint256 public immutable gasCap;
     address payable public feeRecipient;
 
-    constructor(uint256 _gasCap, uint256 _maxFee, uint256 _fee, address _owner, address payable _feeRecipient) {
+    constructor(uint256 _gasCap, uint256 _maxFee, address _owner, address payable _feeRecipient) {
         require(_maxFee <= FEE_BASIS, "Splitter: maxFee must be below FEE_BASIS");
         maxFee = _maxFee;
 
         gasCap = _gasCap;
 
-        _setFee(_fee);
-
         _changeFeeRecipient(_feeRecipient);
-
         _transferOwnership(_owner);
-    }
-
-    /**
-     * @notice internal set fee
-     * @param newFee value of the new fee. Must be less than maxFee
-     */
-    function _setFee(uint256 newFee) internal {
-        require(newFee <= maxFee, "Splitter: fee must be below maxFee");
-
-        emit FeeChanged(fee, newFee);
-        fee = newFee;
-    }
-
-    /**
-     * @notice set fee
-     * @dev only callable by owner
-     * @param newFee value of the new fee
-     */
-    function setFee(uint256 newFee) public onlyOwner {
-        _setFee(newFee);
     }
 
     /**
@@ -101,16 +75,19 @@ contract Splitter is Ownable, Withdrawable, ReentrancyGuard {
      * @param payout The payout of tokens/token amounts to whitehat
      * @param nativeTokenAmt The payout of native Ether amount to whitehat
      * @param gas The amount of gas to forward to the whitehat to mitigate gas griefing
+     * @param fee The fee to be paid to the fee recipient
      */
     function payWhitehat(
         bytes32 referenceId,
         address payable wh,
         ERC20Payment[] calldata payout,
         uint256 nativeTokenAmt,
-        uint256 gas
-    ) public payable nonReentrant {
+        uint256 gas,
+        uint256 fee
+    ) external payable nonReentrant {
         require(wh != address(0), "Splitter: Whitehat address cannot be null");
         require(gas <= gasCap, "Splitter: Gas greater than max allowed");
+        require(fee <= maxFee, "Splitter: Fee greater than max allowed");
 
         for (uint256 i = 0; i < payout.length; i++) {
             uint256 feeAmount = (payout[i].amount * fee) / FEE_BASIS;
@@ -119,7 +96,7 @@ contract Splitter is Ownable, Withdrawable, ReentrancyGuard {
         }
 
         if (nativeTokenAmt > 0) {
-            _payWhitehatNative(wh, nativeTokenAmt, gas);
+            _payWhitehatNative(wh, nativeTokenAmt, gas, fee);
         } else if (msg.value > 0) {
             // must refund msg.sender
             _refundCaller(msg.value);
@@ -135,8 +112,9 @@ contract Splitter is Ownable, Withdrawable, ReentrancyGuard {
      * @param wh whitehat address
      * @param nativeTokenAmt The payout of native Ether amount to whitehat
      * @param gas The amount of gas to forward to the whitehat to mitigate gas griefing
+     * @param fee The fee to be paid to the fee recipient
      */
-    function _payWhitehatNative(address payable wh, uint256 nativeTokenAmt, uint256 gas) internal {
+    function _payWhitehatNative(address payable wh, uint256 nativeTokenAmt, uint256 gas, uint256 fee) internal {
         uint256 feeAmount = (nativeTokenAmt * fee) / FEE_BASIS;
         if (feeAmount > 0) {
             // feeRecipient is trusted, we can skip this check
@@ -163,13 +141,5 @@ contract Splitter is Ownable, Withdrawable, ReentrancyGuard {
         // slither-disable-next-line arbitrary-send-eth,low-level-calls
         (bool success, ) = msg.sender.call{ value: amount }("");
         require(success, "Splitter: Failed to refund to msg.sender");
-    }
-
-    /**
-     * @notice Withdraw asset ERC20 or ETH
-     * @param assetAddress Asset to be withdrawn.
-     */
-    function withdrawERC20ETH(address assetAddress) public override onlyOwner {
-        super.withdrawERC20ETH(assetAddress);
     }
 }
