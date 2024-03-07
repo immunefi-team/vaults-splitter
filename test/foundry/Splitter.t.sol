@@ -38,7 +38,7 @@ contract SplitterTest is Test {
         gasCap = 500_000;
         maxFee = 1_500;
 
-        splitter = new Splitter(gasCap, maxFee, 1_000, owner, feeRecipient);
+        splitter = new Splitter(gasCap, maxFee, owner, feeRecipient);
 
         tokenOwner = vm.addr(2);
         vm.prank(tokenOwner);
@@ -47,7 +47,7 @@ contract SplitterTest is Test {
 
     function testFeeRecipientCannotBeNullOnCreation() public {
         vm.expectRevert("Splitter: FeeRecipient cannot be null address");
-        new Splitter(gasCap, 1_500, 1_000, owner, payable(address(0)));
+        new Splitter(gasCap, 1_500, owner, payable(address(0)));
     }
 
     function testFeeRecipientCannotBeSetToNull() public {
@@ -57,124 +57,30 @@ contract SplitterTest is Test {
         splitter.changeFeeRecipient(payable(address(0)));
     }
 
-    function testSetFeeRecipient() public {
-        // only owner can call
-        address anyone = vm.addr(3);
-        assertTrue(anyone != owner);
-
-        // test
-        vm.prank(owner);
-        splitter.changeFeeRecipient(payable(anyone));
-
-        vm.prank(anyone);
-        vm.expectRevert("Ownable: caller is not the owner");
-        splitter.changeFeeRecipient(payable(anyone));
-    }
-
-    function testFeeCannotBeSetOverMaxFee() public {
-        vm.startPrank(owner);
-
-        vm.expectRevert("Splitter: fee must be below maxFee");
-        splitter.setFee(maxFee + 1);
-    }
-
-    function testSetFee() public {
-        // only owner can call
-        uint256 newFee = 1_400;
-
-        address anyone = vm.addr(3);
-        assertTrue(anyone != owner);
-
-        // test
-        vm.prank(owner);
-        splitter.setFee(newFee);
-
-        vm.prank(anyone);
-        vm.expectRevert("Ownable: caller is not the owner");
-        splitter.setFee(newFee);
-    }
-
-    function testRecoverStuckETH() public {
-        // should be able to recover
-
-        // test prep
-        uint256 stuckFunds = 0.1 ether;
-
-        vm.deal(address(splitter), stuckFunds);
-
-        // test exec
-        uint256 preBalanceOwner = owner.balance;
-
-        vm.prank(owner);
-        splitter.withdrawERC20ETH(address(0));
-
-        uint256 postBalanceOwner = owner.balance;
-
-        // test asserts
-        assertEq(address(splitter).balance, 0); // no more funds in the splitter
-        assertEq(postBalanceOwner - preBalanceOwner, stuckFunds); // funds get back to owner
-    }
-
-    function testRecoverStuckERC20() public {
-        // should be able to recover
-
-        // test prep
-        uint256 stuckFunds = 0.1 ether;
-
-        vm.prank(tokenOwner);
-        token.mint(address(splitter), stuckFunds);
-
-        // test exec
-        uint256 preBalanceOwner = token.balanceOf(owner);
-
-        vm.prank(owner);
-        splitter.withdrawERC20ETH(address(token));
-
-        uint256 postBalanceOwner = token.balanceOf(owner);
-
-        // test asserts
-        assertEq(token.balanceOf(address(splitter)), 0); // no more funds in the splitter
-        assertEq(postBalanceOwner - preBalanceOwner, stuckFunds); // funds get back to owner
-    }
-
-    function testRecoverStuckETHOnlyOwner() public {
-        // only owner can call
-
-        address anyone = vm.addr(3);
-        assertTrue(anyone != owner);
-
-        // test
-        vm.prank(owner);
-        splitter.withdrawERC20ETH(address(0)); // should not fail
-
-        vm.prank(anyone);
-        vm.expectRevert("Ownable: caller is not the owner");
-        splitter.withdrawERC20ETH(address(0));
-    }
-
     function testCannotStuckETH() public {
         // try to send more than expected, will refund
 
         // test prep
         address project = vm.addr(3);
         address payable whitehat = payable(vm.addr(4));
+        uint256 fee = 1_000;
 
         uint256 amount = 1 ether;
-        uint256 fee = (splitter.fee() * amount) / splitter.FEE_BASIS();
+        uint256 feeAmount = (fee * amount) / splitter.FEE_BASIS();
 
         uint256 payout = amount;
 
         Splitter.ERC20Payment[] memory erc20Payout = new Splitter.ERC20Payment[](0);
 
         vm.expectEmit(true, true, true, true);
-        emit PayWhitehat(project, "referenceId", whitehat, erc20Payout, payout, feeRecipient, splitter.fee());
+        emit PayWhitehat(project, "referenceId", whitehat, erc20Payout, payout, feeRecipient, fee);
 
         uint256 introducedError = 0.1 ether;
-        uint256 ethToFillAndSend = payout + fee + introducedError;
+        uint256 ethToFillAndSend = payout + feeAmount + introducedError;
         hoax(project, ethToFillAndSend);
 
         // test exec
-        splitter.payWhitehat{ value: ethToFillAndSend }("referenceId", whitehat, erc20Payout, payout, 25_000);
+        splitter.payWhitehat{ value: ethToFillAndSend }("referenceId", whitehat, erc20Payout, payout, 25_000, fee);
 
         // test assert
         assertEq(address(splitter).balance, 0);
@@ -184,6 +90,7 @@ contract SplitterTest is Test {
         // test prep
         address project = vm.addr(3);
         address payable whitehat = payable(vm.addr(4));
+        uint256 fee = 1_000;
 
         Splitter.ERC20Payment[] memory erc20Payout = new Splitter.ERC20Payment[](0);
 
@@ -194,7 +101,7 @@ contract SplitterTest is Test {
         hoax(project, ethToFillAndSend);
 
         // test exec
-        splitter.payWhitehat{ value: ethToFillAndSend }("referenceId", whitehat, erc20Payout, 0, 25_000);
+        splitter.payWhitehat{ value: ethToFillAndSend }("referenceId", whitehat, erc20Payout, 0, 25_000, fee);
 
         // test assert
         assertEq(address(splitter).balance, 0);
@@ -209,42 +116,44 @@ contract SplitterTest is Test {
         // test prep
         address project = vm.addr(3);
         address payable whitehat = payable(vm.addr(4));
+        uint256 fee = 1_000;
 
         uint256 amount = 1 ether;
-        uint256 fee = (splitter.fee() * amount) / splitter.FEE_BASIS();
+        uint256 feeAmount = (fee * amount) / splitter.FEE_BASIS();
 
         uint256 payout = amount;
 
         Splitter.ERC20Payment[] memory erc20Payout = new Splitter.ERC20Payment[](0);
 
-        uint256 ethToFillAndSend = payout + fee;
+        uint256 ethToFillAndSend = payout + feeAmount;
         hoax(project, ethToFillAndSend);
 
         // test exec
         uint256 whitehatPreBalance = address(whitehat).balance;
         uint256 feeRecipientPreBalance = address(splitter.feeRecipient()).balance;
-        splitter.payWhitehat{ value: ethToFillAndSend }("referenceId", whitehat, erc20Payout, payout, 25_000);
+        splitter.payWhitehat{ value: ethToFillAndSend }("referenceId", whitehat, erc20Payout, payout, 25_000, fee);
 
         // test assert
         assertEq(address(splitter).balance, 0);
         assertEq(address(whitehat).balance - whitehatPreBalance, payout);
-        assertEq(address(splitter.feeRecipient()).balance - feeRecipientPreBalance, fee);
+        assertEq(address(splitter.feeRecipient()).balance - feeRecipientPreBalance, feeAmount);
     }
 
     function testERC20Distribution() public {
         // test prep
         address project = vm.addr(3);
         address payable whitehat = payable(vm.addr(4));
+        uint256 fee = 1_000;
 
         uint256 amount = 1 ether;
-        uint256 fee = (splitter.fee() * amount) / splitter.FEE_BASIS();
+        uint256 feeAmount = (fee * amount) / splitter.FEE_BASIS();
 
         uint256 payout = amount;
 
         Splitter.ERC20Payment[] memory erc20Payout = new Splitter.ERC20Payment[](1);
         erc20Payout[0] = Splitter.ERC20Payment({ token: address(token), amount: payout });
 
-        uint256 tokenToMint = payout + fee;
+        uint256 tokenToMint = payout + feeAmount;
         vm.prank(tokenOwner);
         token.mint(project, tokenToMint);
 
@@ -254,55 +163,57 @@ contract SplitterTest is Test {
 
         vm.startPrank(project);
         token.approve(address(splitter), tokenToMint);
-        splitter.payWhitehat("referenceId", whitehat, erc20Payout, 0, 25_000);
+        splitter.payWhitehat("referenceId", whitehat, erc20Payout, 0, 25_000, fee);
 
         // test assert
         assertEq(token.balanceOf(address(splitter)), 0);
         assertEq(token.balanceOf(whitehat) - whitehatPreBalance, payout);
-        assertEq(token.balanceOf(splitter.feeRecipient()) - feeRecipientPreBalance, fee);
+        assertEq(token.balanceOf(splitter.feeRecipient()) - feeRecipientPreBalance, feeAmount);
     }
 
     function testGasCap() public {
         // test prep
         address project = vm.addr(3);
         address payable whitehat = payable(vm.addr(4));
+        uint256 fee = 1_000;
 
         uint256 amount = 1 ether;
-        uint256 fee = (splitter.fee() * amount) / splitter.FEE_BASIS();
+        uint256 feeAmount = (fee * amount) / splitter.FEE_BASIS();
 
         uint256 payout = amount;
 
         Splitter.ERC20Payment[] memory erc20Payout = new Splitter.ERC20Payment[](0);
 
-        uint256 ethToFillAndSend = payout + fee;
+        uint256 ethToFillAndSend = payout + feeAmount;
         hoax(project, ethToFillAndSend);
 
         uint256 gasLimit = gasCap + 1;
 
         // test exec
         vm.expectRevert("Splitter: Gas greater than max allowed");
-        splitter.payWhitehat{ value: ethToFillAndSend }("referenceId", whitehat, erc20Payout, payout, gasLimit);
+        splitter.payWhitehat{ value: ethToFillAndSend }("referenceId", whitehat, erc20Payout, payout, gasLimit, fee);
     }
 
     function testCannotPayNullWhitehat() public {
         // test prep
         address project = vm.addr(3);
         address payable whitehat = payable(address(0));
+        uint256 fee = 1_000;
 
         uint256 amount = 1 ether;
-        uint256 fee = (splitter.fee() * amount) / splitter.FEE_BASIS();
+        uint256 feeAmount = (fee * amount) / splitter.FEE_BASIS();
 
         uint256 payout = amount;
 
         Splitter.ERC20Payment[] memory erc20Payout = new Splitter.ERC20Payment[](0);
 
-        uint256 ethToFillAndSend = payout + fee;
+        uint256 ethToFillAndSend = payout + feeAmount;
         hoax(project, ethToFillAndSend);
 
         uint256 gasLimit = gasCap - 1;
 
         // test exec
         vm.expectRevert("Splitter: Whitehat address cannot be null");
-        splitter.payWhitehat{ value: ethToFillAndSend }("referenceId", whitehat, erc20Payout, payout, gasLimit);
+        splitter.payWhitehat{ value: ethToFillAndSend }("referenceId", whitehat, erc20Payout, payout, gasLimit, fee);
     }
 }
